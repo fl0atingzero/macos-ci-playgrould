@@ -30,7 +30,41 @@ jobs:
           ninja TextMate
       
       - name: List files
-        working-directory: textmate
+        working-directory: textmate/release
         run: |
           tree .
+
+      - name: Package DMG
+        working-directory: textmate
+        run: |
+          set -euo pipefail
+
+          APP="release/Applications/TextMate/TextMate.app"
+          test -d "$APP"
+
+          rm -rf dist
+          mkdir -p dist/stage
+
+          # Copy app into a staging folder (ditto preserves bundle metadata well)
+          ditto "$APP" "dist/stage/TextMate.app"
+
+          # Optional but common: add /Applications symlink for drag-and-drop installs
+          ln -s /Applications "dist/stage/Applications"
+
+          # Build compressed DMG (UDZO)
+          hdiutil create \
+            -volname "TextMate" \
+            -srcfolder "dist/stage" \
+            -ov \
+            -format UDZO \
+            "dist/TextMate-macos-arm64.dmg"
+
+          ls -lh dist
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TextMate-macos-26-arm64
+          path: textmate/dist/TextMate-macos-arm64.dmg
+
 
