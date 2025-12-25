@@ -1,9 +1,9 @@
-name: build-macos
+name: source-engine-macos
 on:
   workflow_dispatch:
 
 jobs:
-  build-macos:
+  build-source-engine-macos:
     runs-on: macos-14
     steps:
       - name: Clone source-engine

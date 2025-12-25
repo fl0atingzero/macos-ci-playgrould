@@ -1,0 +1,30 @@
+name: textmate-macos-26
+on:
+  workflow_dispatch:
+
+jobs:
+  build-textmate-macos:
+    runs-on: macos-26
+    steps:
+      - name: Clone source
+        run: |
+          git clone --recursive --depth 1 https://github.com/textmate/textmate.git textmate
+    
+      - name: Install deps
+        run: |
+          brew install boost capnp google-sparsehash multimarkdown ninja ragel tree
+
+      - name: Configure
+        working-directory: textmate
+        run: |
+          ./configure
+      - name: Build
+        working-directory: textmate
+        run: |
+          ninja TextMate
+      
+      - name: List files
+        working-directory: textmate
+        run: |
+          tree .
+
