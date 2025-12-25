@@ -5,8 +5,6 @@ on:
 jobs:
   build-textmate-macos:
     runs-on: macos-26
-    env:
-      MACOSX_DEPLOYMENT_TARGET: "26.0"
     steps:
       - name: Clone source
         run: |
@@ -21,9 +19,24 @@ jobs:
         run: |
           BREW_PREFIX="$(brew --prefix)"
           cat > local.rave <<EOF
-          add FLAGS "-I${BREW_PREFIX}/include"
+          # Override TextMate's min OS version used by the build system
+          set APP_MIN_OS "26.0"
+
+          # Ensure Info.plist variable expansion uses the same min version
+          set PLIST_FLAGS "-dTARGET_NAME='\${target}' -dAPP_MIN_OS='\${APP_MIN_OS}'"
+
+          # Your Homebrew include/lib paths
+          add FLAGS    "-I${BREW_PREFIX}/include"
           add LN_FLAGS "-L${BREW_PREFIX}/lib"
+
+          # Force the actual compiler/linker min version (last flag wins)
+          add FLAGS    "-mmacosx-version-min=\${APP_MIN_OS}"
+          add LN_FLAGS "-mmacosx-version-min=\${APP_MIN_OS}"
+
+          # If actool is used, keep it consistent too
+          add AC_FLAGS "--minimum-deployment-target=\${APP_MIN_OS} --platform=macosx"
           EOF
+
           ./configure
 
       - name: Build
