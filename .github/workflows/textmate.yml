@@ -29,6 +29,8 @@ jobs:
           printf 'add FLAGS "-I%s/include"\nadd LN_FLAGS "-L%s/lib"\n' \
             "$BREW_PREFIX" "$BREW_PREFIX" > local.rave
 
+          mkdir -p "$BUILD_DIR"
+
           export builddir="$BUILD_DIR"
 
           ./configure
