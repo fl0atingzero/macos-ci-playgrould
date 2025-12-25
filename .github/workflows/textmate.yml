@@ -5,11 +5,16 @@ on:
 jobs:
   build-textmate-macos:
     runs-on: macos-26
+
+    env:
+      BUILD_DIR: ${{ github.workspace }}/tm-build
+      MACOSX_DEPLOYMENT_TARGET: "26.0"
+
     steps:
       - name: Clone source
         run: |
           git clone --recursive --depth 1 https://github.com/textmate/textmate.git textmate
-    
+
       - name: Install deps
         run: |
           brew install boost capnp google-sparsehash multimarkdown ninja ragel tree
@@ -17,38 +22,43 @@ jobs:
       - name: Configure
         working-directory: textmate
         run: |
+          set -euo pipefail
+
           BREW_PREFIX="$(brew --prefix)"
-          cat > local.rave <<EOF
-          add FLAGS "-I${BREW_PREFIX}/include"
-          add LN_FLAGS "-L${BREW_PREFIX}/lib"
-          EOF
+
+          printf 'add FLAGS "-I%s/include"\nadd LN_FLAGS "-L%s/lib"\n' \
+            "$BREW_PREFIX" "$BREW_PREFIX" > local.rave
+
+          export builddir="$BUILD_DIR"
+
           ./configure
 
       - name: Build
         working-directory: textmate
         run: |
-          ninja TextMate
-      
+          set -euo pipefail
+          ninja -C "$BUILD_DIR" TextMate
+
       - name: List files
-        working-directory: textmate/release
         run: |
-          tree .
+          set -euo pipefail
+          tree "$BUILD_DIR/release" || true
+          ls -la "$BUILD_DIR/release/Applications/TextMate" || true
 
       - name: Package DMG
-        working-directory: textmate
         run: |
           set -euo pipefail
 
-          APP="release/Applications/TextMate/TextMate.app"
+          APP="$BUILD_DIR/release/Applications/TextMate/TextMate.app"
           test -d "$APP"
 
           rm -rf dist
           mkdir -p dist/stage
 
-          # Copy app into a staging folder (ditto preserves bundle metadata well)
+          # Copy app into staging folder
           ditto "$APP" "dist/stage/TextMate.app"
 
-          # Optional but common: add /Applications symlink for drag-and-drop installs
+          # Drag-to-install convenience symlink
           ln -s /Applications "dist/stage/Applications"
 
           # Build compressed DMG (UDZO)
@@ -57,7 +67,7 @@ jobs:
             -srcfolder "dist/stage" \
             -ov \
             -format UDZO \
-            "dist/TextMate-macos-arm64.dmg"
+            "dist/TextMate-macos-26-arm64.dmg"
 
           ls -lh dist
 
@@ -65,6 +75,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: TextMate-macos-26-arm64
-          path: textmate/dist/TextMate-macos-arm64.dmg
-
-
+          path: dist/TextMate-macos-26-arm64.dmg
