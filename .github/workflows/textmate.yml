@@ -12,7 +12,7 @@ jobs:
     
       - name: Install deps
         run: |
-          brew install boost capnp google-sparsehash multimarkdown ninja ragel tree
+          brew install boost capnp google-sparsehash multimarkdown ninja ragel tree dylibbundler
 
       - name: Configure
         working-directory: textmate
@@ -43,6 +43,37 @@ jobs:
         working-directory: textmate
         run: |
           ninja TextMate
+
+
+
+      - name: Bundle Homebrew dylibs into TextMate.app
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          APP="$HOME/build/textmate/release/Applications/TextMate/TextMate.app"
+          EXE="$APP/Contents/MacOS/TextMate"
+          FW="$APP/Contents/Frameworks"
+
+          mkdir -p "$FW"
+
+          # Copy non-system dylibs into Contents/Frameworks and rewrite references to use it
+          dylibbundler -od -b \
+            -x "$EXE" \
+            -d "$FW" \
+            -p "@executable_path/../Frameworks/" \
+            -s /opt/homebrew/opt/capnp/lib \
+            -s /opt/homebrew/lib
+
+          # Re-sign after modifying / adding dylibs
+          codesign --force --deep --sign - "$APP"
+
+          # Verify no /opt/homebrew deps remain
+          echo "Dependencies after bundling:"
+          otool -L "$EXE" | grep -E 'homebrew|capnp|kj' || true
+
+          codesign --verify --deep --strict "$APP"
+
       
       - name: Package DMG
         shell: bash
